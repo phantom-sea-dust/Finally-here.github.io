@@ -1,1 +1,349 @@
-hello world
+const int s0 = 7; 
+const int s1 = 8; 
+const int s2 = 12; 
+const int s3 = 13; 
+const int out = A3;//A3即14+3，其余同理 
+//颜色识别摄像头的针脚定义，LED灯的针脚11,直接用数字量写入语句——“digitalWrite”控制
+//const定义起静态作用，定义的值无法被改变，这里不用也没事
+
+int state=0;
+int pre_state=0;
+//两个状态量的定义，用于记录小车经过的弯道数
+
+int flag=0;//每过一个弯道flag+1
+int flag1=0;//用于色卡识别，红色：1；绿色：2；蓝色：3
+int flag2=0;//用于气球颜色识别，红色：1；绿色：2；蓝色：3
+  
+int i = 0;
+int j = 0;
+//循环程序标志量
+
+int red = 0; 
+int green = 0; 
+int blue = 0;
+//用于存储红、绿、蓝、三种滤波器模式下，由out接口反馈的脉冲值
+ 
+int servopin=4;
+//舵机控制针脚定义
+ 
+void setup() 
+{ 
+  digitalWrite(11 , HIGH );//开机摄像头灯亮
+  pinMode( 2, INPUT);
+  pinMode( 3, INPUT);
+  //input，接收从两个近红外传感器传回的值
+  
+  pinMode( 14, INPUT);
+  pinMode( 16, INPUT);
+  pinMode( 18, INPUT);
+  //input，接收三个寻迹黑标（灰度传感器也行）传回的值
+  
+  pinMode( 5 , OUTPUT);
+  pinMode( 6 , OUTPUT);
+  pinMode( 9 , OUTPUT);
+  pinMode( 10 , OUTPUT);
+  pinMode( servopin,OUTPUT);
+  //output，设5、6、9、10及舵机针脚，为输出针脚，对外输出高/低电平
+  
+ pinMode(s2, OUTPUT); 
+ pinMode(s3, OUTPUT);
+  //通过改变s2,s3的高低电平来改变滤波器模式，选择让红/绿/蓝光进入
+  
+ pinMode(out, INPUT);
+ //进入光的光强被转为信号脉冲数，并由out针脚接收，定点分别测量红绿蓝的信号脉冲数
+ //通过比较脉冲数的大小，即可判定物体颜色（只能判断红绿蓝）
+  
+ pinMode(s0, OUTPUT); 
+ pinMode(s1, OUTPUT);
+ //通过改变s0,s1的高低电平来改变out针脚的输出频率
+ 
+ digitalWrite(s0, HIGH); 
+ digitalWrite(s1, HIGH);
+ //设置输出频率为100%
+ 
+ Serial.begin(9600); 
+} 
+ 
+void loop() 
+{ 
+  
+while(flag<3){//出发点——第二个弯道出口
+    
+    state=digitalRead(3);//读取，车顶近红外的电平状态 
+    if(state == 1 and pre_state == 0){
+    
+    flag=flag++;//由于识别到空气为1，因此打开开关，flag便加了一次
+    
+     digitalWrite( 11 , HIGH );
+     delay(5);
+     digitalWrite( 11 , LOW );
+     //若flag+1,LED灯将闪烁一次（若打开电源，灯闪烁多次，请关闭重开）
+    }
+     pre_state=state;
+  
+  if (( ( ( ( analogRead(18) ) <= ( 500 ) ) && ( ( ( analogRead(16) ) >= ( 800 ) ) && ( ( analogRead(14) ) >= ( 600 ) ) ) ) 
+  || ( ( ( ( analogRead(18) ) <= ( 500 ) ) && ( ( ( analogRead(16) ) <= ( 400 ) ) && ( ( analogRead(14) ) <= ( 300 ) ) ) ) 
+  || ( ( ( analogRead(18) ) >= ( 500 ) ) && ( ( ( analogRead(16) ) >= ( 400 ) ) && ( ( analogRead(14) ) >= ( 500 ) ) ) ) ) ))
+  {
+    forward();
+  }
+  if (( ( ( analogRead(18) ) >= ( 500 ) ) && ( ( ( analogRead(16) ) <= ( 400 ) ) && ( ( analogRead(14) ) >= ( 500 ) ) ) ))
+  {
+    turnleft();
+  }
+  if (( ( ( analogRead(18) ) >= ( 500 ) ) && ( ( ( analogRead(16) ) >= ( 400 ) ) && ( ( analogRead(14) ) <= ( 300 ) ) ) ))
+  {
+    turnright();
+  }
+
+  Serial.print("C");
+  Serial.print(analogRead(18));
+  Serial.println();
+  Serial.print("L");
+  Serial.print(analogRead(16));
+  Serial.println();
+  Serial.print("R");
+  Serial.print(analogRead(14));
+  Serial.println();
+  Serial.print(digitalRead(3));
+  Serial.println();
+  Serial.println(flag);
+  //串口打印中左右黑标传感器模拟量，车顶近红外传感器数字量及flag值
+   
+}
+   
+while(flag>=3 && flag1==0){//出第二个弯道——色卡识别完成
+  
+  while(( analogRead(18) ) >= ( 500 ) || ( analogRead(16) ) >= ( 500 ) || ( analogRead(14) ) >= ( 500 )){//只要三个黑标，不都识别到黑色，车就一直寻迹
+    
+  Serial.print("C");
+  Serial.print(analogRead(18));
+  Serial.println();
+  Serial.print("L");
+  Serial.print(analogRead(16));
+  Serial.println();
+  Serial.print("R");
+  Serial.print(analogRead(14));
+  Serial.println();
+  Serial.print(digitalRead(3));
+  Serial.println();
+  Serial.println(flag);
+  //串口打印中左右黑标传感器模拟量，车顶近红外传感器数字量及flag值
+  
+   if (( ( ( ( analogRead(18) ) <= ( 500 ) ) && ( ( ( analogRead(16) ) >= ( 800 ) ) && ( ( analogRead(14) ) >= ( 600 ) ) ) ) 
+   || ( ( ( ( analogRead(18) ) <= ( 500 ) ) && ( ( ( analogRead(16) ) <= ( 400 ) ) && ( ( analogRead(14) ) <= ( 300 ) ) ) ) 
+   || ( ( ( analogRead(18) ) >= ( 500 ) ) && ( ( ( analogRead(16) ) >= ( 400 ) ) && ( ( analogRead(14) ) >= ( 500 ) ) ) ) ) ))
+  {
+   forward2();//过完弯道减速，惯性小，色卡处停得准
+  }
+   if (( ( ( analogRead(18) ) >= ( 500 ) ) && ( ( ( analogRead(16) ) <= ( 400 ) ) && ( ( analogRead(14) ) >= ( 500 ) ) ) ))
+  {
+    turnleft();
+  }
+  if (( ( ( analogRead(18) ) >= ( 500 ) ) && ( ( ( analogRead(16) ) >= ( 400 ) ) && ( ( analogRead(14) ) <= ( 300 ) ) ) ))
+  {
+    turnright();
+  }
+  }
+  
+   forward();
+   delay(80);
+   stp(); 
+   //黑线处微调，而后，车停
+   
+ digitalWrite(11 , HIGH);
+ //开灯测颜色，效果好
+ 
+ for(i;i<=10;i++){//循环10次确保传回数值稳定
+
+ delay(100);
+ color();//颜色识别子函数
+   
+ Serial.print("R Intensity:"); 
+ Serial.print(red, DEC); 
+ Serial.print(" G Intensity: "); 
+ Serial.print(green, DEC); 
+ Serial.print(" B Intensity : "); 
+ Serial.println(blue, DEC);
+ //DEC以十进制数输出（感觉好像也没啥用）
+ 
+ if((red==green) || (red==blue) || (green==blue)){
+  i=0;//有极小的可能，出现两种颜色脉冲数
+ }
+  }
+
+ if(red<blue && red<green){
+   flag1=1;//色卡为红色
+    Serial.print("flag1:");
+   Serial.println(flag1); 
+ }
+ else if(green<red && green<blue){
+   flag1=2;//色卡为绿色
+    Serial.print("flag1:");
+    Serial.println(flag1); 
+ }
+ else if(blue<red && blue<green){
+   flag1=3;//色卡为蓝色
+    Serial.print("flag1:");
+    Serial.println(flag1); 
+ }
+ forward3();
+ delay(100);//高电压强制启动，防止小车僵住（具体原因不明，可能是器件问题）
+}
+ 
+while(flag1!=0){//扎气球，收车，走人
+     if (( ( ( ( analogRead(18) ) <= ( 500 ) ) && ( ( ( analogRead(16) ) >= ( 800 ) ) && ( ( analogRead(14) ) >= ( 600 ) ) ) ) || ( ( ( ( analogRead(18) ) <= ( 500 ) ) && ( ( ( analogRead(16) ) <= ( 400 ) ) && ( ( analogRead(14) ) <= ( 300 ) ) ) ) || ( ( ( analogRead(18) ) >= ( 500 ) ) && ( ( ( analogRead(16) ) >= ( 400 ) ) && ( ( analogRead(14) ) >= ( 500 ) ) ) ) ) ))
+  {
+   forward3();
+  }
+   if (( ( ( analogRead(18) ) >= ( 500 ) ) && ( ( ( analogRead(16) ) <= ( 400 ) ) && ( ( analogRead(14) ) >= ( 500 ) ) ) ))
+  {
+    turnleft();
+  }
+  if (( ( ( analogRead(18) ) >= ( 500 ) ) && ( ( ( analogRead(16) ) >= ( 400 ) ) && ( ( analogRead(14) ) <= ( 300 ) ) ) ))
+  {
+    turnright();
+  }
+ 
+ if(digitalRead(2)==0){//如果侧向近红外识别到物体，digitalread（2）==0
+ stp();
+ int k = 0; 
+ for(k;k<=10;k++){
+ color(); 
+ Serial.print("R Intensity:"); 
+ Serial.print(red, DEC); 
+ Serial.print(" G Intensity: "); 
+ Serial.print(green, DEC); 
+ Serial.print(" B Intensity : "); 
+ Serial.println(blue, DEC); 
+ delay(200);
+  }
+  if(red<blue && red<green){
+   flag2=1;
+    Serial.print("flag2:");
+   Serial.println(flag2); 
+ }
+ else if(green<red && green<blue){
+   flag2=2;
+    Serial.print("flag2:");
+    Serial.println(flag2); 
+ }
+ else if(blue<red && blue<green){
+   flag2=3;
+    Serial.print("flag2:");
+    Serial.println(flag2); 
+ }
+
+ if(flag1==flag2){//当色卡颜色与气颜色匹配时扎气球
+ 
+    for(int angle=0;angle<240;angle+=10)
+    {
+      for(int i=0;i<50;i++){
+      servopulse(angle);//舵机控制子函数
+      }
+      delay(100);
+    }//扎
+    
+    for(int angle=0;angle<10;angle+=2)
+    {
+      for(int i=0;i<50;i++){
+      servopulse(angle);
+      }
+      delay(100);
+    }//回
+    
+    //非舵机库函数舵机控制（调用舵机库函数将导致9、10号针脚不可用，即由9、10号针脚控制的电机不转）
+    
+ forward3();
+ delay(100);//强制启动
+ 
+  for(;;){
+     if (( ( ( ( analogRead(18) ) <= ( 500 ) ) && ( ( ( analogRead(16) ) >= ( 800 ) ) && ( ( analogRead(14) ) >= ( 600 ) ) ) ) || ( ( ( ( analogRead(18) ) <= ( 500 ) ) && ( ( ( analogRead(16) ) <= ( 400 ) ) && ( ( analogRead(14) ) <= ( 300 ) ) ) ) || ( ( ( analogRead(18) ) >= ( 500 ) ) && ( ( ( analogRead(16) ) >= ( 400 ) ) && ( ( analogRead(14) ) >= ( 500 ) ) ) ) ) ))
+  {
+   forward3();
+  }
+   if (( ( ( analogRead(18) ) >= ( 500 ) ) && ( ( ( analogRead(16) ) <= ( 400 ) ) && ( ( analogRead(14) ) >= ( 500 ) ) ) ))
+  {
+    turnleft();
+  }
+  if (( ( ( analogRead(18) ) >= ( 500 ) ) && ( ( ( analogRead(16) ) >= ( 400 ) ) && ( ( analogRead(14) ) <= ( 300 ) ) ) ))
+  {
+    turnright();
+  }
+  }
+ }
+ 
+ forward3();
+ delay(100);//颜色不匹配，车也能前进，防止近红外一直处于低电平，车stp()不动，当车识别到间隙便会继续寻迹
+ 
+ }
+ }
+ 
+}
+ 
+void color()//上太极创客找ardiuno开发—>ardiuno参考资料—>传感器应用颜色传感器篇 
+{ 
+ digitalWrite(s2, LOW); 
+ digitalWrite(s3, LOW); 
+ //count OUT, pRed, RED 
+ red = pulseIn(out, digitalRead(out) == HIGH ? LOW : HIGH); //pulseln读引脚的脉冲信号
+ digitalWrite(s3, HIGH); 
+ //count OUT, pBLUE, BLUE 
+ blue = pulseIn(out, digitalRead(out) == HIGH ? LOW : HIGH); 
+ digitalWrite(s2, HIGH); 
+ //count OUT, pGreen, GREEN 
+ green = pulseIn(out, digitalRead(out) == HIGH ? LOW : HIGH); 
+}
+void turnright()
+{
+  analogWrite(5 , 0);
+  analogWrite(6 , 250);
+  analogWrite(9 , 250);
+  analogWrite(10 , 0);
+}
+
+void forward()
+{
+  analogWrite(5 , 170);
+  analogWrite(6 , 0);
+  analogWrite(9 , 255);
+  analogWrite(10 , 0);
+}
+
+void turnleft()
+{
+  analogWrite(5 , 250);
+  analogWrite(6 , 0);
+  analogWrite(9 , 0);
+  analogWrite(10 , 250);
+}
+void stp()
+{
+  analogWrite(5 , 0);
+  analogWrite(6 , 0);
+  analogWrite(9 , 0);
+  analogWrite(10 , 0);
+}
+void forward2()
+{
+  analogWrite(5 , 110);
+  analogWrite(6 , 0);
+  analogWrite(9 , 140);
+  analogWrite(10 , 0);
+}
+void forward3()
+{ 
+  analogWrite(5 , 190);
+  analogWrite(6 , 0);
+  analogWrite(9 , 240);
+  analogWrite(10 , 0);
+}
+void servopulse(int angle)
+{
+  int pulsewidth=(angle*10)+500;
+  digitalWrite(servopin,HIGH);
+  delayMicroseconds(pulsewidth);
+  digitalWrite(servopin,LOW);
+  delayMicroseconds(20000-pulsewidth);
+}//CSDN搜“ardiuno舵机库函数与直流电机冲突解决方法”
+
